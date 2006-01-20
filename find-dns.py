@@ -4,7 +4,7 @@ import socket, time, sys, random
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.setblocking(0)
 
-bps = 20 * 1024
+bps = 350 * 1024
 
 bytes = 0
 starttime = time.time()
@@ -32,6 +32,8 @@ for name in ['localhost', 'www.microsoft.com', 'localhost.localdomain']:
       for b in r3:
         for a in r4:
           try:
+            if a == 127:
+              continue
             bytes += s.sendto(p, 0, ('%i.%i.%i.%i' % (a, b, c, d), 53))
           except socket.error, msg:
             print '%i.%i.%i.%i: %s' % (a, b, c, d, msg)
