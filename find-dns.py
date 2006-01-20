@@ -41,6 +41,7 @@ for name in ['localhost', 'www.microsoft.com', 'localhost.localdomain']:
             recv = s.recvfrom(9999)
             info = (p, recv, time.time())
             logfile.write(repr(info))
+            logfile.write("\n")
             print recv
           except socket.error:
             pass  
