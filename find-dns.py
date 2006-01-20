@@ -27,13 +27,13 @@ for name in ['localhost', 'www.microsoft.com', 'localhost.localdomain']:
   random.shuffle(r2)
   random.shuffle(r3)
   random.shuffle(r4)
-  for c in r1:
-    for d in r2:
-      for b in r3:
+  for d in r1:
+    for b in r2:
+      for c in r3:
         for a in r4:
+          if a == 127:
+            continue
           try:
-            if a == 127:
-              continue
             bytes += s.sendto(p, 0, ('%i.%i.%i.%i' % (a, b, c, d), 53))
           except socket.error, msg:
             print '%i.%i.%i.%i: %s' % (a, b, c, d, msg)
@@ -50,6 +50,8 @@ for name in ['localhost', 'www.microsoft.com', 'localhost.localdomain']:
             sys.stdout.flush()
             time.sleep(0.001)
         random.shuffle(r4)
+        print '%3i.%3i.%3i.%3i' % (a, b, c, d), "bps: %i\t\t\t\r" % (bytes / (time.time() - starttime)),
+        sys.stdout.flush()
       random.shuffle(r3)
     random.shuffle(r2)
   random.shuffle(r1)            
