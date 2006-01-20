@@ -4,11 +4,11 @@ import socket, time, sys, random
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.setblocking(0)
 
-bps = 350 * 1024
+bps = 25 * 1024
 
 bytes = 0
 starttime = time.time()
-logfile = open('dnslog.txt', 'wa')
+logfile = open('dnslog.txt', 'a')
 for name in ['localhost', 'www.microsoft.com', 'localhost.localdomain']:
   d = DNS()
   q = DNSQR()
@@ -38,7 +38,7 @@ for name in ['localhost', 'www.microsoft.com', 'localhost.localdomain']:
           except socket.error, msg:
             print '%i.%i.%i.%i: %s' % (a, b, c, d, msg)
           try:
-            recv = s.recvfrom(9999)
+            recv = s.recvfrom(800)
             info = (p, recv, time.time())
             logfile.write(repr(info))
             logfile.write("\n")
@@ -50,8 +50,8 @@ for name in ['localhost', 'www.microsoft.com', 'localhost.localdomain']:
             sys.stdout.flush()
             time.sleep(0.001)
         random.shuffle(r4)
-        print '%3i.%3i.%3i.%3i' % (a, b, c, d), "bps: %i\t\t\t\r" % (bytes / (time.time() - starttime)),
-        sys.stdout.flush()
       random.shuffle(r3)
+      print '%3i.%3i.%3i.%3i' % (a, b, c, d), "bps: %i\t\t\t\r" % (bytes / (time.time() - starttime)),
+      sys.stdout.flush()
     random.shuffle(r2)
   random.shuffle(r1)            
