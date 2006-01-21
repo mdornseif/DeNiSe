@@ -1,4 +1,4 @@
-import struct, time
+import struct, socket, time
 
 # Most of the nice stuff is lifted from scapy
 
@@ -187,6 +187,24 @@ class StrLenField(StrField):
         return s[l:], self.m2i(pkt,s[:l])
 
 
+class FieldLenField(Field):
+    def __init__(self, name, default, fld, fmt = "H", shift=0):
+        Field.__init__(self, name, default, fmt)
+        self.fld = fld
+        self.shift = shift
+    def i2m(self, pkt, x):
+        if x is None:
+            f = pkt.fields_desc[pkt.fields_desc.index(self.fld)]
+            v = f.i2m(pkt,getattr(pkt, self.fld))
+            x = len(v)-self.shift
+        return x
+#    def i2h(self, pkt, x):
+#        if x is None:
+#            f = pkt.fields_desc[pkt.fields_desc.index(self.fld)]
+#            v = f.i2m(pkt,getattr(pkt, self.fld))
+#            x = len(v)+self.shift
+#        return x
+
 class DNSStrField(StrField):
     def i2m(self, pkt, x):
         x = x.split(".")
@@ -275,22 +293,23 @@ class DNSQRField(DNSRRField):
     def decodeRR(self, name, s, p):
         ret = s[p:p+4]
         p += 4
-        rr = packets.DNSQR("\x00"+ret)
+        rr = DNSQR("\x00"+ret)
         rr.qname = name
         return rr,p
         
         
-
-
 class RDataField(StrLenField):
     def m2i(self, pkt, s):
         if pkt.type == 1:
             s = socket.inet_ntoa(s)
+        elif pkt.type == 28:
+          if s == '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01':
+            s = '::1'
         return s
     def i2m(self, pkt, s):
         if pkt.type == 1:
             if s:
-                s = inet_aton(s)
+                s = socket.inet_aton(s)
         elif pkt.type in [2,3,4,5]:
             s = "".join(map(lambda x: chr(len(x))+x, s.split(".")))
             if ord(s[-1]):
@@ -997,6 +1016,21 @@ class PacketList:
         g.plot(Gnuplot.Data(d,**kargs))
         return g
 
+
+
+dnstypes = { 0:"ANY", 255:"ALL",
+             1:"A", 2:"NS", 3:"MD", 4:"MD", 5:"CNAME", 6:"SOA", 7: "MB", 8:"MG",
+             9:"MR",10:"NULL",11:"WKS",12:"PTR",13:"HINFO",14:"MINFO",15:"MX",16:"TXT",
+             17:"RP",18:"AFSDB",28:"AAAA", 33:"SRV",38:"A6",39:"DNAME",
+             41:"OPT" # RFC2671 
+             }
+
+
+dnsqtypes = {251:"IXFR",252:"AXFR",253:"MAILB",254:"MAILA",255:"ALL"}
+dnsqtypes.update(dnstypes)
+dnsclasses =  {1: 'IN',  2: 'CS',  3: 'CH',  4: 'HS',  255: 'ANY'}
+
+
 class DNS(Packet):
     name = "DNS"
     fields_desc = [ ShortField("id",0),
@@ -1029,15 +1063,29 @@ class DNS(Packet):
                 name = ' "%s"' % self.qd.qname
         return 'DNS %s%s ' % (type, name)
 
-dnstypes = { 0:"ANY", 255:"ALL",
-             1:"A", 2:"NS", 3:"MD", 4:"MD", 5:"CNAME", 6:"SOA", 7: "MB", 8:"MG",
-             9:"MR",10:"NULL",11:"WKS",12:"PTR",13:"HINFO",14:"MINFO",15:"MX",16:"TXT",
-             17:"RP",18:"AFSDB",28:"AAAA", 33:"SRV",38:"A6",39:"DNAME"}
 
-
-dnsqtypes = {251:"IXFR",252:"AXFR",253:"MAILB",254:"MAILA",255:"ALL"}
-dnsqtypes.update(dnstypes)
-dnsclasses =  {1: 'IN',  2: 'CS',  3: 'CH',  4: 'HS',  255: 'ANY'}
+def DNSgetstr(s,p):
+    name = ""
+    q = 0
+    while 1:
+        if p >= len(s):
+            warning("DNS RR prematured end (ofs=%i, len=%i)"%(p,len(s)))
+            break
+        l = ord(s[p])
+        p += 1
+        if l & 0xc0:
+            if not q:
+                q = p+1
+            p = ((l & 0x3f) << 8) + ord(s[p]) - 12
+            continue
+        elif l > 0:
+            name += s[p:p+l]+"."
+            p += l
+            continue
+        break
+    if q:
+        p = q
+    return name,p
 
 
 class DNSQR(Packet):
